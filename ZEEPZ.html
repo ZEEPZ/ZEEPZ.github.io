@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circle Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+        }
+        canvas {
+            border: 1px solid black;
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let circle = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 20,
+            speed: 5,
+            dx: 0,
+            dy: 0,
+        };
+
+        // Key state tracking for smoother input handling
+        const keys = {
+            w: false,
+            a: false,
+            s: false,
+            d: false,
+        };
+
+        window.addEventListener('keydown', (event) => {
+            if (event.key in keys) {
+                keys[event.key] = true;
+            }
+        });
+
+        window.addEventListener('keyup', (event) => {
+            if (event.key in keys) {
+                keys[event.key] = false;
+            }
+        });
+
+        // Game update loop
+        function update() {
+            // Update the circle's velocity based on keys pressed
+            circle.dx = 0;
+            circle.dy = 0;
+
+            if (keys.w) {
+                circle.dy = -circle.speed;
+            }
+            if (keys.s) {
+                circle.dy = circle.speed;
+            }
+            if (keys.a) {
+                circle.dx = -circle.speed;
+            }
+            if (keys.d) {
+                circle.dx = circle.speed;
+            }
+
+            // Apply the velocity to the circle's position
+            circle.x += circle.dx;
+            circle.y += circle.dy;
+
+            // Prevent the circle from going out of bounds
+            if (circle.x - circle.radius < 0) {
+                circle.x = circle.radius;
+            }
+            if (circle.x + circle.radius > canvas.width) {
+                circle.x = canvas.width - circle.radius;
+            }
+            if (circle.y - circle.radius < 0) {
+                circle.y = circle.radius;
+            }
+            if (circle.y + circle.radius > canvas.height) {
+                circle.y = canvas.height - circle.radius;
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'blue';
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop); // Continue the loop
+        }
+
+        gameLoop(); // Start the game loop
+    </script>
+</body>
+</html>
