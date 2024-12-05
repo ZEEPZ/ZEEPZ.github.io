@@ -8,11 +8,9 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #f0f0f0;
         }
         canvas {
-            border: 1px solid black;
-            background-color: white;
+            display: block; /* Remove scrollbar */
         }
     </style>
 </head>
@@ -33,7 +31,6 @@
             dy: 0,
         };
 
-        // Key state tracking for smoother input handling
         const keys = {
             w: false,
             a: false,
@@ -55,7 +52,6 @@
 
         // Game update loop
         function update() {
-            // Update the circle's velocity based on keys pressed
             circle.dx = 0;
             circle.dy = 0;
 
@@ -72,30 +68,40 @@
                 circle.dx = circle.speed;
             }
 
-            // Apply the velocity to the circle's position
             circle.x += circle.dx;
             circle.y += circle.dy;
 
             // Prevent the circle from going out of bounds
-            if (circle.x - circle.radius < 0) {
-                circle.x = circle.radius;
+            if (circle.x - circle.radius < 20) { // Adjusted for wall width
+                circle.x = circle.radius + 20;
             }
-            if (circle.x + circle.radius > canvas.width) {
-                circle.x = canvas.width - circle.radius;
+            if (circle.x + circle.radius > canvas.width - 20) {
+                circle.x = canvas.width - circle.radius - 20;
             }
-            if (circle.y - circle.radius < 0) {
-                circle.y = circle.radius;
+            if (circle.y - circle.radius < 20) { // Adjusted for wall width
+                circle.y = circle.radius + 20;
             }
-            if (circle.y + circle.radius > canvas.height) {
-                circle.y = canvas.height - circle.radius;
+            if (circle.y + circle.radius > canvas.height - 20) {
+                circle.y = canvas.height - circle.radius - 20;
             }
         }
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Draw grey background
+            ctx.fillStyle = 'grey';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw black walls
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, 20); // Top wall
+            ctx.fillRect(0, canvas.height - 20, canvas.width, 20); // Bottom wall
+            ctx.fillRect(0, 0, 20, canvas.height); // Left wall
+            ctx.fillRect(canvas.width - 20, 0, 20, canvas.height); // Right wall
+
+            // Draw the circle
+            ctx.fillStyle = 'blue';
             ctx.beginPath();
             ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
-            ctx.fillStyle = 'blue';
             ctx.fill();
             ctx.closePath();
         }
