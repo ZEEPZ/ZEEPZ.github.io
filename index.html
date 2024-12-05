@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Circle Game with Shooting</title>
+    <title>Zombie Shooter Game</title>
     <style>
         body {
             margin: 0;
@@ -55,6 +55,14 @@
             font-family: 'Atari', cursive; /* Atari-style font */
             text-shadow: 2px 2px 5px rgba(255, 255, 255, 0.7); /* Shadow for visibility */
         }
+        .credits {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: black; /* Text color */
+            font-size: 16px; /* Font size */
+            font-family: 'Comic Sans MS', cursive; /* Font family */
+        }
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Atari&display=swap'); /* Google Fonts */
     </style>
 </head>
@@ -62,6 +70,7 @@
     <div id="startScreen">
         <div id="title">ZEEPZ.IO</div>
         <button id="startButton">Start</button>
+        <div class="credits">Made By: Evan Pasky</div> <!-- Creator's name -->
     </div>
     <div id="deathScreen">
         <div id="deathText">YOU DIED</div>
@@ -72,29 +81,27 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        
+        canvas.width = window.innerWidth; // Full width of the window
+        canvas.height = window.innerHeight; // Full height of the window
+
         // Game state variables
         let isGameRunning = false; 
+        const MAX_ENEMIES = 10; // Maximum number of enemies allowed at a time
         let player = {};
         let bullets = [];
         let keys = {};
         let enemies = [];
         let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
 
-        const STICK_LENGTH = 25;
-        const STICK_THICKNESS = 8;
-        const ENEMY_COUNT = 25; 
         const ENEMY_RADIUS = 15; 
-        const ENEMY_SPEED = 2; 
+        const ENEMY_SPEED = 1; 
         const ENEMY_HEALTH = 45; 
         const PLAYER_HEALTH_INITIAL = 100; 
         const PLAYER_SPEED = 5; 
         const BULLET_DAMAGE = 5;
         const ENEMY_DAMAGE = 15; 
         const ATTACK_COOLDOWN = 3000; 
-        const SHOOT_COOLDOWN = 1000; 
+        const SHOOT_COOLDOWN = 200;
 
         // Sound effects
         const pewSound = document.getElementById('pewSound');
@@ -125,14 +132,18 @@
                 speed: PLAYER_SPEED,
                 health: PLAYER_HEALTH_INITIAL,
                 lastShotTime: 0,
+                invincible: false, // Added invincibility flag
+                invincibleStart: 0, // Track invincibility time
+                flashStart: 0, // Track time for flashing
+                flashing: false, // Track flashing state
             };
 
             // Initialize keys
-            keys = { w: false, a: false, s: false, d: false };
+            keys = { w: false, a: false, s: false, d: false, shift: false };
 
             // Initialize enemies
             enemies = [];
-            for (let i = 0; i < ENEMY_COUNT; i++) {
+            while (enemies.length < MAX_ENEMIES) {
                 spawnEnemy();
             }
 
@@ -141,13 +152,14 @@
 
         function spawnEnemy() {
             enemies.push({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
+                x: Math.random() * (canvas.width - 40) + 20,
+                y: Math.random() * (canvas.height - 40) + 20,
                 radius: ENEMY_RADIUS,
                 speed: ENEMY_SPEED,
                 health: ENEMY_HEALTH,
                 targeting: false,
                 lastAttackTime: 0,
+                direction: Math.random() * Math.PI * 2, // Random initial direction
             });
         }
 
@@ -177,7 +189,7 @@
                     y: player.y,
                     radius: 5,
                     speed: 10,
-                    dx: Math.cos(angle) * 10,
+                    dx: Math.cos(angle) * 10, // Bullet direction towards the cursor
                     dy: Math.sin(angle) * 10,
                     angle: angle,
                 });
@@ -188,19 +200,23 @@
 
         function update() {
             if (isGameRunning) {
+                // Determine player speed, apply sprinting if shift is pressed
+                let currentSpeed = keys.shift ? PLAYER_SPEED * 1.5 : PLAYER_SPEED;
+
                 // Move the player based on keys pressed
                 player.dx = 0;
                 player.dy = 0;
 
-                if (keys.w) player.dy = -player.speed;
-                if (keys.s) player.dy = player.speed;
-                if (keys.a) player.dx = -player.speed;
-                if (keys.d) player.dx = player.speed;
+                if (keys.w) player.dy = -currentSpeed;
+                if (keys.s) player.dy = currentSpeed;
+                if (keys.a) player.dx = -currentSpeed;
+                if (keys.d) player.dx = currentSpeed;
 
+                // Update player position
                 player.x += player.dx;
                 player.y += player.dy;
 
-                // Prevent the player from going out of bounds
+                // Prevent the player from going out of bounds (using walls)
                 if (player.x - player.radius < 20) player.x = player.radius + 20;
                 if (player.x + player.radius > canvas.width - 20) player.x = canvas.width - player.radius - 20;
                 if (player.y - player.radius < 20) player.y = player.radius + 20;
@@ -221,19 +237,24 @@
                 }
 
                 // Update and manage enemies
-                for (const enemy of enemies) {
+                enemies.forEach((enemy) => {
                     if (enemy.health <= 0) {
                         enemies.splice(enemies.indexOf(enemy), 1);
-                        continue; // Remove dead enemies
+                        return; // Remove dead enemies
                     }
 
                     const distanceToPlayer = Math.hypot(enemy.x - player.x, enemy.y - player.y);
                     if (distanceToPlayer < player.radius * 6) {
                         enemy.targeting = true;
 
-                        // Attack the player every 3 seconds
+                        // Attack the player every 3 seconds if player is not invincible
                         if (Date.now() - enemy.lastAttackTime >= ATTACK_COOLDOWN) {
-                            player.health -= ENEMY_DAMAGE; // Deal damage to the player
+                            if (!player.invincible) {
+                                player.health -= ENEMY_DAMAGE; // Deal damage to the player
+                                player.invincible = true; // Set player invincible when hit
+                                player.flashStart = Date.now(); // Start flashing
+                                player.flashing = true; // Set flashing to true
+                            }
                             enemy.lastAttackTime = Date.now();
                         }
 
@@ -242,18 +263,26 @@
                         enemy.dx = Math.cos(angle) * enemy.speed;
                         enemy.dy = Math.sin(angle) * enemy.speed;
                     } else {
-                        // Random movement
-                        enemy.dx = (Math.random() - 0.5) * enemy.speed;
-                        enemy.dy = (Math.random() - 0.5) * enemy.speed;
+                        // Randomly change direction for erratic movement
+                        if (Math.random() < 0.02) {
+                            enemy.direction += (Math.random() - 0.5) * Math.PI / 2; // Randomly change direction
+                        }
+
+                        enemy.dx = Math.cos(enemy.direction) * enemy.speed;
+                        enemy.dy = Math.sin(enemy.direction) * enemy.speed;
                     }
 
                     enemy.x += enemy.dx;
                     enemy.y += enemy.dy;
 
-                    // Prevent enemies from going out of bounds
-                    if (enemy.x < 0 || enemy.x > canvas.width) enemy.dx *= -1; // Reverse direction
-                    if (enemy.y < 0 || enemy.y > canvas.height) enemy.dy *= -1; // Reverse direction
-                }
+                    // Allow zombies to touch walls and change direction
+                    if (enemy.x < 10 || enemy.x > canvas.width - 10) {
+                        enemy.direction += Math.PI; // Reverse direction upon hitting the wall
+                    }
+                    if (enemy.y < 10 || enemy.y > canvas.height - 10) {
+                        enemy.direction += Math.PI; // Reverse direction upon hitting the wall
+                    }
+                });
 
                 // Bullet collision with enemies
                 bullets.forEach((bullet, bulletIndex) => {
@@ -266,18 +295,19 @@
                     });
                 });
 
-                // Player collision with enemies
-                enemies.forEach((enemy) => {
-                    const distance = Math.hypot(enemy.x - player.x, enemy.y - player.y);
-                    if (distance < player.radius + enemy.radius) {
-                        player.health -= ENEMY_DAMAGE; // Player takes damage
-                        enemy.health -= ENEMY_HEALTH; // Enemy takes damage on contact
-                    }
-                });
+                // Handle player invincibility duration
+                if (player.flashing && Date.now() - player.flashStart > 100) {
+                    player.flashing = false; // Player stops flashing after 0.1 seconds
+                }
 
                 // Check for player death
                 if (player.health <= 0) {
                     endGame();
+                }
+
+                // Check the number of enemies and spawn new ones if necessary
+                while (enemies.length < MAX_ENEMIES) {
+                    spawnEnemy();
                 }
             }
         }
@@ -288,19 +318,23 @@
                 ctx.fillStyle = 'grey';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // Draw detection circle
-                ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(player.x, player.y, player.radius * 6, 0, Math.PI * 2);
-                ctx.stroke();
+                // Draw walls
+                ctx.fillStyle = 'black'; // Color for the walls
+                ctx.fillRect(0, 0, canvas.width, 10); // Top wall
+                ctx.fillRect(0, canvas.height - 10, canvas.width, 10); // Bottom wall
+                ctx.fillRect(0, 0, 10, canvas.height); // Left wall
+                ctx.fillRect(canvas.width - 10, 0, 10, canvas.height); // Right wall
 
-                // Draw player
-                ctx.fillStyle = 'blue';
+                // Draw player (as a stick figure with a gun)
+                ctx.fillStyle = player.flashing ? 'darkred' : 'blue'; // Flash dark red if hit
                 ctx.beginPath();
-                ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+                ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2); // Draw player
                 ctx.fill();
                 ctx.closePath();
+
+                // Draw the gun (grey stick)
+                ctx.fillStyle = 'grey'; // Color for the gun
+                ctx.fillRect(player.x - 2, player.y - 20, 4, 20); // A vertical stick as a gun
 
                 // Draw enemies
                 enemies.forEach((enemy) => {
@@ -311,19 +345,25 @@
                     ctx.closePath();
                 });
 
-                // Draw bullets
+                // Draw bullets as ovals
                 ctx.fillStyle = 'yellow';
                 bullets.forEach((bullet) => {
                     ctx.beginPath();
-                    ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
+                    ctx.ellipse(bullet.x, bullet.y, bullet.radius * 2, bullet.radius, bullet.angle, 0, Math.PI * 2); // Draw bullets as ovals
                     ctx.fill();
                     ctx.closePath();
                 });
 
-                // Display player health
-                ctx.fillStyle = 'black';
+                // Draw health bar
+                ctx.fillStyle = 'red'; // Health bar color
+                ctx.fillRect(10, 10, 200, 20); // Background for health bar
+                ctx.fillStyle = 'green'; // Health level color
+                ctx.fillRect(10, 10, (200 * player.health / PLAYER_HEALTH_INITIAL), 20); // Current health level
+
+                // Display player health numerically (optional)
+                ctx.fillStyle = 'white';
                 ctx.font = "20px Arial";
-                ctx.fillText(`Health: ${player.health}`, 10, 30);
+                ctx.fillText(`Health: ${Math.max(0, player.health)}`, 220, 30);
             }
         }
 
