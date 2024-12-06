@@ -1,39 +1,79 @@
-<!-- public/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTML Runner</title>
+    <title>Fullscreen Code Runner</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
         }
-        textarea {
-            width: 100%;
-            height: 200px;
+        #runButton {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            background-color: #007BFF;
+            color: white;
+            border-radius: 5px;
+            margin-bottom: 20px;
         }
-        #output {
+        #codeInput {
+            width: 80%;
+            height: 300px;
             border: 1px solid #ccc;
+            border-radius: 5px;
             padding: 10px;
-            margin-top: 20px;
-            background-color: #f9f9f9;
+            display: block; /* Show by default */
+            resize: none; /* Disable resizing */
         }
     </style>
 </head>
 <body>
-    <h1>HTML Code Runner</h1>
-    <textarea id="codeInput" placeholder="Type your HTML code here..."></textarea>
-    <button onclick="runCode()">Run Code</button>
-    <h2>Output:</h2>
-    <div id="output"></div>
+    <textarea id="codeInput" placeholder="Write your code here..."></textarea>
+    <button id="runButton">Run</button>
 
     <script>
-        function runCode() {
-            const code = document.getElementById('codeInput').value;
-            document.getElementById('output').innerHTML = code;
+        const runButton = document.getElementById('runButton');
+        const codeInput = document.getElementById('codeInput');
+
+        // Function to go full screen
+        function goFullscreen() {
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen();
+            } else if (document.documentElement.mozRequestFullScreen) { // Firefox
+                document.documentElement.mozRequestFullScreen();
+            } else if (document.documentElement.webkitRequestFullscreen) { // Chrome, Safari and Opera
+                document.documentElement.webkitRequestFullscreen();
+            } else if (document.documentElement.msRequestFullscreen) { // IE/Edge
+                document.documentElement.msRequestFullscreen();
+            }
         }
+
+        // Event listener for "Run" button
+        runButton.addEventListener('click', function() {
+            goFullscreen();
+            codeInput.style.display = 'none'; // Hide the textbox after clicking Run
+            runButton.style.display = 'none'; // Hide the button
+        });
+
+        // Event listener for the ESC key
+        document.addEventListener('keydown', (event) => {
+            if (event.key === "Escape") {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                }
+                codeInput.style.display = 'block'; // Show the textbox again
+                runButton.style.display = 'block'; // Show the button again
+            }
+        });
     </script>
 </body>
 </html>
